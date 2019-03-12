@@ -1,10 +1,12 @@
+import re
 #TODO: Go over the naming convention
 
 class ExpressionCalculator:
     def __init__(self):
         self.single_line_expressions = []
         self.vars={}
-        self.operators = ['+', '-', '/', '*']  # elements order have a logic influence
+        self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
+        self.unary_operators = ['\+\+', '\-\-']  #TODO: dont forget the r is for raw string representation
 
     def evaluate(self, expression_series):
         self.single_line_expressions = expression_series.split('\n')
@@ -12,12 +14,7 @@ class ExpressionCalculator:
         for expression in self.single_line_expressions:
             self.parse_expression(expression)
 
-        #  TODO: Export this to an outer function and add ','
-        print("(",end="")
-        for idx,key in enumerate(self.vars):
-            if idx > 0: print(",",end="")
-            print(str(key)+"="+str(self.vars[key]),end="")
-        print(")")
+        self.print_variables(self.vars)
 
     #  TODO: parse is not the right term for what it does
     def parse_expression(self, expression):
@@ -33,16 +30,81 @@ class ExpressionCalculator:
             return int(expression)
         #TODO: check if expression is blank maybe? maybe expression is '()'
 
+        #Priority 1 -> compute inner brackets
         #TODO: export '(' to an enum or something parallel to left_bracket
         #TODO: test the case in which the expression has ')' but not '('
+        expression = self.resolve_inner_brackets(expression)
+
+        #Priority 2 -> compute unary operators
+        expression = self.resolve_unary_operations(expression)
+
+        # #Priority 3 -> compute concatd +- signs
+        # expression = self.resolve_concated_signs(expression)
+
+        #Pririty 4 -> compute binary operators
+        res = self.compute_without_brackets(expression)
+
+        return res
+
+    def resolve_inner_brackets(self, expression):
         while '(' in expression:
             lft_idx = expression.rfind('(')
             rgt_idx = expression.find(')',lft_idx)
             res = self.compute(expression[lft_idx+1:rgt_idx]) #Without brackets
             expression = expression[:lft_idx]+str(res)+expression[rgt_idx+1:]
 
-        return self.compute_without_brackets(expression)
-    #TODO: Check what happens if I get a series of numbers with spaces, what then?
+        return expression
+
+    def resolve_unary_operations(self, expression):
+        last_index = 0
+        modified_expression = ""
+        for unary_operand in self.unary_operators:
+            p = re.compile(r'[a-zA-Z]+' + unary_operand)  # TODO: Get an inner-depth understanding of how this works
+            for m in p.finditer(expression):
+                var = expression[m.start():m.end() - 2]  # Reducing the -- or ++ #TODO: This might not be best practice
+                if var not in self.vars:
+                    print(
+                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
+                    return None
+                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
+                last_index = m.end()
+                if unary_operand == '\+\+':  # TODO: Definetly not best practice
+                    self.vars[var] += 1
+                elif unary_operand == '\-\-':
+                    self.vars[var] -= 1
+                else:
+                    print('not suppose to arrive here')
+
+            if last_index != 0:  # Reset
+                expression = modified_expression + expression[last_index + 1:]
+                last_index = 0
+                modified_expression = ""
+
+            p = re.compile(
+                r'' + unary_operand + '[a-zA-Z]+')  # TODO: Get an inner-depth understanding of how this works
+            for m in p.finditer(expression):
+                var = expression[m.start() + 2:m.end()]  # Reducing the -- or ++  #TODO: This might not be best practice
+                if var not in self.vars:
+                    print(
+                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
+                    return None
+
+                if unary_operand == '\+\+':  # TODO: Definetly not best practice, replace with an enum
+                    self.vars[var] += 1
+                elif unary_operand == '\-\-':
+                    self.vars[var] -= 1
+                else:
+                    print('not suppose to arrive here')
+                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
+                last_index = m.end()
+
+            if last_index != 0:  # Reset
+                expression = modified_expression + expression[last_index + 1:]
+                last_index = 0
+                modified_expression = ""
+
+        return expression
+
     #Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
         if expression.isdigit():
@@ -50,7 +112,7 @@ class ExpressionCalculator:
 
         res = None
         #Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
-        for operator in self.operators:
+        for operator in self.binary_operators:
             if operator in expression:
                 sub_expressions = expression.split(operator)
 
@@ -80,6 +142,15 @@ class ExpressionCalculator:
         print("Unresolved expression:"+expression)
         return None
 
+    #TODO: This may be further improved
+    @staticmethod
+    def print_variables(varDict):
+        print("(", end="")
+        for idx, key in enumerate(varDict):
+            if idx > 0:
+                print(",", end="")
+            print(str(key) + "=" + str(varDict[key]), end="")
+        print(")")
 
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("i=5 4 4 5\nx=(1+(2+1)*3)*3")
+MyExpression.evaluate("a=1+(1+2)")
