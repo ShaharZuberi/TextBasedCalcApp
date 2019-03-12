@@ -39,7 +39,7 @@ class ExpressionCalculator:
         expression = self.resolve_unary_operations(expression)
 
         # #Priority 3 -> compute concatd +- signs
-        # expression = self.resolve_concated_signs(expression)
+        expression = self.resolve_concatenated_signs(expression)
 
         #Pririty 4 -> compute binary operators
         res = self.compute_without_brackets(expression)
@@ -105,6 +105,25 @@ class ExpressionCalculator:
 
         return expression
 
+    def resolve_concatenated_signs(self, expression):
+        p = re.compile(r'[+-]{2,}')
+        last_index = 0
+        modified_expression = ""
+        for m in p.finditer(expression):
+            if m.group().count('-')%2 == 0:
+                aggregated_sign='+'
+            else:
+                aggregated_sign = '-'
+
+            modified_expression+=(expression[last_index:m.start()]+aggregated_sign)
+            last_index=m.end()
+
+        if last_index==0:
+            return expression
+
+        modified_expression+=expression[last_index:]
+        return modified_expression
+
     #Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
         if expression.isdigit():
@@ -153,4 +172,4 @@ class ExpressionCalculator:
         print(")")
 
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=1+(1+2)")
+MyExpression.evaluate("a=1+++-+++4+4+-5")
