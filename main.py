@@ -4,7 +4,7 @@ import re
 class ExpressionCalculator:
     def __init__(self):
         self.single_line_expressions = []
-        self.vars={}
+        self.vars = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
         self.unary_operators = ['\+\+', '\-\-']  #TODO: dont forget the r is for raw string representation
 
@@ -24,9 +24,8 @@ class ExpressionCalculator:
         self.vars[key] = self.compute(exp)
 
     def compute(self, expression):
-        #TODO: export is digit to an outside function, maybe in the future we would like to implement is digit for float numbers as well
         #TODO: check if this if condition is necessery in both compute and compute_without_brackets
-        if expression.isdigit():
+        if self.is_int(expression):
             return int(expression)
         #TODO: check if expression is blank maybe? maybe expression is '()'
 
@@ -110,23 +109,23 @@ class ExpressionCalculator:
         last_index = 0
         modified_expression = ""
         for m in p.finditer(expression):
-            if m.group().count('-')%2 == 0:
-                aggregated_sign='+'
+            if m.group().count('-') % 2 == 0:
+                aggregated_sign = '+'
             else:
                 aggregated_sign = '-'
 
             modified_expression+=(expression[last_index:m.start()]+aggregated_sign)
             last_index=m.end()
 
-        if last_index==0:
+        if last_index == 0:
             return expression
 
-        modified_expression+=expression[last_index:]
+        modified_expression += expression[last_index:]
         return modified_expression
 
     #Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
-        if expression.isdigit():
+        if self.is_int(expression):
             return int(expression)
 
         res = None
@@ -171,5 +170,13 @@ class ExpressionCalculator:
             print(str(key) + "=" + str(varDict[key]), end="")
         print(")")
 
+    @staticmethod  #TODO: we can export this to outside of the class
+    def is_int(num):
+        #We can use exceptions but they are expensive so we would prefere to use as a workflow. instead we can use regular expressions
+        if re.match(r'^[-+]?(\d)+$',num):
+            return True
+        return False
+
+
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=1+++-+++4+4+-5")
+MyExpression.evaluate("a=-6+5")
