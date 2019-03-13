@@ -1,10 +1,11 @@
 import re
 #TODO: Go over the naming convention
+#TODO: What happens if you divied by zero?
 
 class ExpressionCalculator:
     def __init__(self):
         self.single_line_expressions = []
-        self.vars={}
+        self.vars = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
         self.unary_operators = ['\+\+', '\-\-']  #TODO: dont forget the r is for raw string representation
 
@@ -24,9 +25,8 @@ class ExpressionCalculator:
         self.vars[key] = self.compute(exp)
 
     def compute(self, expression):
-        #TODO: export is digit to an outside function, maybe in the future we would like to implement is digit for float numbers as well
         #TODO: check if this if condition is necessery in both compute and compute_without_brackets
-        if expression.isdigit():
+        if self.is_int(expression):
             return int(expression)
         #TODO: check if expression is blank maybe? maybe expression is '()'
 
@@ -106,34 +106,40 @@ class ExpressionCalculator:
         return expression
 
     def resolve_concatenated_signs(self, expression):
-        p = re.compile(r'[+-]{2,}')
+        p = re.compile('[+-]{2,}')
         last_index = 0
         modified_expression = ""
         for m in p.finditer(expression):
-            if m.group().count('-')%2 == 0:
-                aggregated_sign='+'
+            if m.group().count('-') % 2 == 0:
+                aggregated_sign = '+'
             else:
                 aggregated_sign = '-'
 
             modified_expression+=(expression[last_index:m.start()]+aggregated_sign)
             last_index=m.end()
 
-        if last_index==0:
+        if last_index == 0:
             return expression
 
-        modified_expression+=expression[last_index:]
+        modified_expression += expression[last_index:]
         return modified_expression
 
     #Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
-        if expression.isdigit():
+        if self.is_int(expression):
             return int(expression)
-
+        special_slice_regex='((?<!\*)(?!^))\\{}'
         res = None
         #Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
         for operator in self.binary_operators:
             if operator in expression:
-                sub_expressions = expression.split(operator)
+                if operator in ['-', '+']: #This is a special case due to the affect that the minus sign has before numbers
+                    sub_expressions = re.compile(special_slice_regex.format(operator)).split(expression)
+                    sub_expressions = list(filter(None, sub_expressions))
+                    if len(sub_expressions) == 1:  #There was no real need to split, If this is too complex we can remove it
+                        continue
+                else:
+                    sub_expressions = expression.split(operator) #The problem is with the split here. if I could do a split based on regex it would be great
 
                 for item in sub_expressions:
                     item = self.compute_without_brackets(item)
@@ -171,5 +177,12 @@ class ExpressionCalculator:
             print(str(key) + "=" + str(varDict[key]), end="")
         print(")")
 
+    @staticmethod  #TODO: we can export this to outside of the class
+    def is_int(num):
+        #We can use exceptions but they are expensive so we would prefere to use as a workflow. instead we can use regular expressions
+        if re.match(r'^[-+]?(\d)+$',num):
+            return True
+        return False
+
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=1+++-+++4+4+-5")
+MyExpression.evaluate("a=-5*-5")
