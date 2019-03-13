@@ -1,6 +1,7 @@
 from utilities import *
 import re
 
+
 #  TODO: What happens if you divied by zero?
 
 class ExpressionCalculator:
@@ -31,8 +32,7 @@ class ExpressionCalculator:
         expression = self.resolve_brackets(expression)
         expression = self.resolve_unary_operations(expression)
         expression = self.resolve_concatenated_signs(expression)
-        res = self.compute_without_brackets(expression)
-        return res
+        return self.compute_basic_expression(expression)
 
     @staticmethod
     def replace_assignment_shortcuts(expression):
@@ -69,7 +69,7 @@ class ExpressionCalculator:
             lft_idx = expression.rfind('(')
             rgt_idx = expression.find(')', lft_idx)
             if rgt_idx == -1:
-                raise SyntaxError("No matching closing bracket for opening bracket at:"+str(lft_idx))
+                raise SyntaxError("No matching closing bracket for opening bracket at:" + str(lft_idx))
             val = self.compute(expression[lft_idx + 1:rgt_idx])  # Brackets inner expression
             expression = expression[:lft_idx] + str(val) + expression[rgt_idx + 1:]  # Concatenate result value
         return expression
@@ -82,7 +82,7 @@ class ExpressionCalculator:
         :return: a mathematical expression after unary operations are resolved
         """
         for op in self.unary_operators:
-            var_name_rgx = r'([\w]*[A-Za-z]+[\w]*)' #[0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (to avoid a var that is only digits)
+            var_name_rgx = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (to avoid a var that is only digits)
             for p in [var_name_rgx + op, op + var_name_rgx]:
                 # TODO: Get an inner-depth understanding of how re.compile works
                 idx = 0
@@ -90,9 +90,9 @@ class ExpressionCalculator:
                 for m in re.compile(p).finditer(expression):
                     var = m.group(1)
                     if var not in self.variables:
-                        raise ValueError("variable "+var+" referenced before assignment")
+                        raise ValueError("variable " + var + " referenced before assignment")
 
-                    if p == (var_name_rgx+op):  #Assign value before operator
+                    if p == (var_name_rgx + op):  # Assign value before operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
                     if op == '\+\+':  # TODO: Definetly not best practice
@@ -100,9 +100,9 @@ class ExpressionCalculator:
                     elif op == '\-\-':
                         self.variables[var] -= 1
                     else:
-                        raise ValueError('Operator '+op+' not implemented')
+                        raise ValueError('Operator ' + op + ' not implemented')
 
-                    if p == (op+var_name_rgx):  #Assign value after operator
+                    if p == (op + var_name_rgx):  # Assign value after operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
                     idx = m.end()
@@ -114,7 +114,7 @@ class ExpressionCalculator:
 
     @staticmethod
     def resolve_concatenated_signs(expression):
-        p = '[+-]{2,}' #two or more signs concatenated
+        p = '[+-]{2,}'  # Two or more concatenated signs
         idx = 0
         new_exp = ""
         for m in re.compile(p).finditer(expression):
