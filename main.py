@@ -88,53 +88,40 @@ class ExpressionCalculator:
         return expression
 
     def resolve_unary_operations(self, expression):
-        last_index = 0
-        modified_expression = ""
-        for unary_operand in self.unary_operators:
-            # TODO: Change this condition, somevariables may contains numbers such as tmp2
-            p = re.compile(r'[a-zA-Z]+' + unary_operand)  # TODO: Get an inner-depth understanding of how this works
-            for m in p.finditer(expression):
-                var = expression[m.start():m.end() - 2]  # Reducing the -- or ++ #TODO: This might not be best practice
-                if var not in self.variables:
-                    print(
-                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
-                    return None
-                modified_expression += (expression[last_index:m.start()] + str(self.variables[var]))
-                last_index = m.end()
-                if unary_operand == '\+\+':  # TODO: Definetly not best practice
-                    self.variables[var] += 1
-                elif unary_operand == '\-\-':
-                    self.variables[var] -= 1
-                else:
-                    print('not suppose to arrive here')
+        """
+        Computes and assign the value of unary operations
+        example: i++ or i--
+        :param expression: mathematical expression that may consist of unary operations
+        :return: a mathematical expression after unary operations are resolved
+        """
+        for op in self.unary_operators:
+            var_name_rgx = r'([\w]*[A-Za-z]+[\w]*)' #[0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (to avoid a var that is only digits)
+            for p in [var_name_rgx + op, op + var_name_rgx]:
+                # TODO: Get an inner-depth understanding of how re.compile works
+                idx = 0
+                new_exp = ""
+                for m in re.compile(p).finditer(expression):
+                    var = m.group(1)
+                    if var not in self.variables:
+                        raise ValueError("variable "+var+" referenced before assignment")
 
-            if last_index != 0:  # Reset
-                expression = modified_expression + expression[last_index:]
-                last_index = 0
-                modified_expression = ""
+                    if p == (var_name_rgx+op):  #Assign value before operator
+                        new_exp += expression[idx:m.start()] + str(self.variables[var])
 
-            p = re.compile(
-                r'' + unary_operand + '[a-zA-Z]+')  # TODO: Get an inner-depth understanding of how this works
-            for m in p.finditer(expression):
-                var = expression[m.start() + 2:m.end()]  # Reducing the -- or ++  #TODO: This might not be best practice
-                if var not in self.variables:
-                    print(
-                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
-                    return None
+                    if op == '\+\+':  # TODO: Definetly not best practice
+                        self.variables[var] += 1
+                    elif op == '\-\-':
+                        self.variables[var] -= 1
+                    else:
+                        raise ValueError('Operator '+op+' not implemented')
 
-                if unary_operand == '\+\+':  # TODO: Definetly not best practice, replace with an enum
-                    self.variables[var] += 1
-                elif unary_operand == '\-\-':
-                    self.variables[var] -= 1
-                else:
-                    print('not suppose to arrive here')
-                modified_expression += (expression[last_index:m.start()] + str(self.variables[var]))
-                last_index = m.end()
+                    if p == (op+var_name_rgx):  #Assign value after operator
+                        new_exp += expression[idx:m.start()] + str(self.variables[var])
 
-            if last_index != 0:  # Reset
-                expression = modified_expression + expression[last_index + 1:]
-                last_index = 0
-                modified_expression = ""
+                    idx = m.end()
+
+                if idx != 0:  # Reset
+                    expression = new_exp + expression[idx:]
 
         return expression
 
