@@ -1,5 +1,6 @@
 import re
 #TODO: Go over the naming convention
+#TODO: What happens if you divied by zero?
 
 class ExpressionCalculator:
     def __init__(self):
@@ -105,7 +106,7 @@ class ExpressionCalculator:
         return expression
 
     def resolve_concatenated_signs(self, expression):
-        p = re.compile(r'[+-]{2,}')
+        p = re.compile('[+-]{2,}')
         last_index = 0
         modified_expression = ""
         for m in p.finditer(expression):
@@ -132,7 +133,13 @@ class ExpressionCalculator:
         #Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
         for operator in self.binary_operators:
             if operator in expression:
-                sub_expressions = expression.split(operator)
+                if operator in ['-', '+']: #This is a special case due to the affect that the minus sign has before numbers
+                    sub_expressions = re.compile('((?<!\*)(?!^))\\{}'.format(operator)).split(expression)
+                    sub_expressions = list(filter(None, sub_expressions))
+                    if len(sub_expressions) == 1:  #There was no real need to split, If this is too complex we can remove it
+                        continue
+                else:
+                    sub_expressions = expression.split(operator) #The problem is with the split here. if I could do a split based on regex it would be great
 
                 for item in sub_expressions:
                     item = self.compute_without_brackets(item)
@@ -177,6 +184,5 @@ class ExpressionCalculator:
             return True
         return False
 
-
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=-6+5")
+MyExpression.evaluate("a=-5-5")
