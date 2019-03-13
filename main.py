@@ -131,55 +131,55 @@ class ExpressionCalculator:
         new_exp += expression[idx:]
         return new_exp
 
-    # Returns a value, it can manipulate the value
-    def compute_without_brackets(self, expression):
+    def compute_basic_expression(self, expression):
+        """
+        TODO: Fill this up
+        :param expression: an expression that contains no brackets, '=' or unary operators. only binary arithmetic operators
+        :return: the value of the basic expression according to arithmetic rules
+        """
         if is_int(expression):
             return int(expression)
-        special_slice_regex = '((?<!\*)(?!^))\\{}'
+
+        p = '((?<!\*)(?!^))\\{}'  #Regex lookbehind for MUL and DIV operations followed by POSITIVE or NEGATIVE sign and a lookahead fora POSITIVE or NEGATIVE sign as prefix #TODO: Test to see if it works for x=3/-3 also
         res = None
-        # Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
         for op in self.binary_operators:
             if op in expression:
-                if op in ['-', '+']:  # This is a special case due to the affect that the minus sign has before numbers
-                    sub_expressions = re.compile(special_slice_regex.format(op)).split(expression)
+                if op in ['-', '+']:  # This is a special case due to the affect that minus/plus signs before numbers can interperet as potivity signs
+                    sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
-                    if len(
-                            sub_expressions) == 1:  # There was no real need to split, If this is too complex we can remove it
-                        continue
+                    if len(sub_expressions) == 1:
+                        continue  # There was no real need to split, If this is too complex we can remove it
                 else:
-                    sub_expressions = expression.split(
-                        op)  # The problem is with the split here. if I could do a split based on regex it would be great
+                    sub_expressions = expression.split(op)
 
-                for item in sub_expressions:
-                    item = self.compute_without_brackets(item)
+                for sub_exp in sub_expressions:
+                    val = self.compute_basic_expression(sub_exp)
                     if not res:
-                        res = item
+                        res = val
                     elif op == '+':
-                        res += item
+                        res += val
                     elif op == '-':
-                        res -= item
+                        res -= val
                     elif op == '*':
-                        res *= item
+                        res *= val
                     elif op == '/':
-                        if item == 0:
+                        if val == 0:
                             raise ArithmeticError("Division by zero is forbidden")
-                        res /= item
+                        res /= val
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
-
                 return res
 
         if expression in self.variables:
             return self.variables[expression]
-
         raise SyntaxError("Unresolved expression:" + expression)
 
 
 myExpression = ExpressionCalculator()
-res = myExpression.evaluate("i=0\n"
+a = myExpression.evaluate("i=0\n"
                             "j=++i\n"
                             "x=i+++5\n"
                             "y=5+3*10\n"
                             "i+=y")
 
-print_variables(res)
+print_variables(a)
