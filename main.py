@@ -138,44 +138,41 @@ class ExpressionCalculator:
         special_slice_regex = '((?<!\*)(?!^))\\{}'
         res = None
         # Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
-        for operator in self.binary_operators:
-            if operator in expression:
-                if operator in ['-',
-                                '+']:  # This is a special case due to the affect that the minus sign has before numbers
-                    sub_expressions = re.compile(special_slice_regex.format(operator)).split(expression)
+        for op in self.binary_operators:
+            if op in expression:
+                if op in ['-', '+']:  # This is a special case due to the affect that the minus sign has before numbers
+                    sub_expressions = re.compile(special_slice_regex.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(
                             sub_expressions) == 1:  # There was no real need to split, If this is too complex we can remove it
                         continue
                 else:
                     sub_expressions = expression.split(
-                        operator)  # The problem is with the split here. if I could do a split based on regex it would be great
+                        op)  # The problem is with the split here. if I could do a split based on regex it would be great
 
                 for item in sub_expressions:
                     item = self.compute_without_brackets(item)
-                    if not item:  # Unresolved expression (item) - Bubble the error upwards
-                        return None
-                    elif not res:
+                    if not res:
                         res = item
-                    elif operator == '+':
+                    elif op == '+':
                         res += item
-                    elif operator == '-':
+                    elif op == '-':
                         res -= item
-                    elif operator == '*':
+                    elif op == '*':
                         res *= item
-                    elif operator == '/':
+                    elif op == '/':
+                        if item == 0:
+                            raise ArithmeticError("Division by zero is forbidden")
                         res /= item
                     else:
-                        print("Exception, not suppose to arrive here")
+                        raise ValueError('Operator ' + op + ' not implemented')
 
                 return res
 
         if expression in self.variables:
             return self.variables[expression]
 
-        # TODO: Replace with an exception?
-        print("Unresolved expression:" + expression)
-        return None
+        raise SyntaxError("Unresolved expression:" + expression)
 
 
 myExpression = ExpressionCalculator()
