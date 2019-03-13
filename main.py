@@ -19,7 +19,9 @@ class ExpressionCalculator:
 
     #  TODO: parse is not the right term for what it does
     def parse_expression(self, expression):
+        expression = self.resolve_complex_unary_operations(expression)
         res=expression.split('=') #  TODO: Handle cases where expression is i++ or i+=j+=1
+        # Priority 1 -> compute complex unary operators such as +=, -=, *=, /=
         key = res[0]
         exp = res[1]
         self.vars[key] = self.compute(exp)
@@ -30,21 +32,42 @@ class ExpressionCalculator:
             return int(expression)
         #TODO: check if expression is blank maybe? maybe expression is '()'
 
-        #Priority 1 -> compute inner brackets
+
+
+        #Priority 2 -> compute inner brackets
         #TODO: export '(' to an enum or something parallel to left_bracket
         #TODO: test the case in which the expression has ')' but not '('
         expression = self.resolve_inner_brackets(expression)
 
-        #Priority 2 -> compute unary operators
+        #Priority 3 -> compute unary operators
         expression = self.resolve_unary_operations(expression)
 
-        # #Priority 3 -> compute concatd +- signs
+        # #Priority 4 -> compute concatd +- signs
         expression = self.resolve_concatenated_signs(expression)
 
-        #Pririty 4 -> compute binary operators
+        #Pririty 5 -> compute binary operators
         res = self.compute_without_brackets(expression)
 
         return res
+
+    def resolve_complex_unary_operations(self, expression):
+        p = re.compile('(\w*[A-Za-z]+\w*) *(([\+\-\*\/])=)+')#  TODO: dissmember this into smaller chunks so it would be readable, maybe to an outer function
+
+        last_index = 0 #This is duplicate code, I can surely export it to an external function
+        modified_expression = ""
+        cnt_brackets=0
+        for m in p.finditer(expression):
+            var = m.group(1)
+            operator = m.group(3)
+            modified_expression += expression[last_index:m.start(2)]+"="+var+operator+'('
+            last_index=m.end(2)
+            cnt_brackets+=1
+
+        if modified_expression=="":
+            return expression
+
+        modified_expression+= expression[last_index:]+")"*cnt_brackets
+        return modified_expression
 
     def resolve_inner_brackets(self, expression):
         while '(' in expression:
@@ -59,6 +82,7 @@ class ExpressionCalculator:
         last_index = 0
         modified_expression = ""
         for unary_operand in self.unary_operators:
+            #TODO: Change this condition, somevariables may contains numbers such as tmp2
             p = re.compile(r'[a-zA-Z]+' + unary_operand)  # TODO: Get an inner-depth understanding of how this works
             for m in p.finditer(expression):
                 var = expression[m.start():m.end() - 2]  # Reducing the -- or ++ #TODO: This might not be best practice
@@ -76,7 +100,7 @@ class ExpressionCalculator:
                     print('not suppose to arrive here')
 
             if last_index != 0:  # Reset
-                expression = modified_expression + expression[last_index + 1:]
+                expression = modified_expression + expression[last_index:]
                 last_index = 0
                 modified_expression = ""
 
@@ -185,4 +209,8 @@ class ExpressionCalculator:
         return False
 
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=-5*-5")
+MyExpression.evaluate("i=0\n"
+                      "j=++i\n"
+                      "x=i+++5\n"
+                      "y=5+3*10\n"
+                      "i+=y")
