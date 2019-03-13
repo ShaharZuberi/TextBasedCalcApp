@@ -112,24 +112,24 @@ class ExpressionCalculator:
 
         return expression
 
-    def resolve_concatenated_signs(self, expression):
-        p = re.compile('[+-]{2,}')
-        last_index = 0
-        modified_expression = ""
-        for m in p.finditer(expression):
+    @staticmethod
+    def resolve_concatenated_signs(expression):
+        p = '[+-]{2,}' #two or more signs concatenated
+        idx = 0
+        new_exp = ""
+        for m in re.compile(p).finditer(expression):
             if m.group().count('-') % 2 == 0:
                 aggregated_sign = '+'
             else:
                 aggregated_sign = '-'
 
-            modified_expression += (expression[last_index:m.start()] + aggregated_sign)
-            last_index = m.end()
+            new_exp += expression[idx:m.start()] + aggregated_sign
+            idx = m.end()
 
-        if last_index == 0:
+        if idx == 0:
             return expression
-
-        modified_expression += expression[last_index:]
-        return modified_expression
+        new_exp += expression[idx:]
+        return new_exp
 
     # Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
