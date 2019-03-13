@@ -128,13 +128,13 @@ class ExpressionCalculator:
     def compute_without_brackets(self, expression):
         if self.is_int(expression):
             return int(expression)
-
+        special_slice_regex='((?<!\*)(?!^))\\{}'
         res = None
         #Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
         for operator in self.binary_operators:
             if operator in expression:
                 if operator in ['-', '+']: #This is a special case due to the affect that the minus sign has before numbers
-                    sub_expressions = re.compile('((?<!\*)(?!^))\\{}'.format(operator)).split(expression)
+                    sub_expressions = re.compile(special_slice_regex.format(operator)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(sub_expressions) == 1:  #There was no real need to split, If this is too complex we can remove it
                         continue
@@ -185,4 +185,4 @@ class ExpressionCalculator:
         return False
 
 MyExpression = ExpressionCalculator()
-MyExpression.evaluate("a=-5-5")
+MyExpression.evaluate("a=-5*-5")
