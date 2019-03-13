@@ -1,34 +1,31 @@
+from utilities import *
 import re
-#TODO: Go over the naming convention
-#TODO: What happens if you divied by zero?
+#  TODO: Go over the naming convention
+#  TODO: What happens if you divied by zero?
+
 
 class ExpressionCalculator:
     def __init__(self):
-        self.single_line_expressions = []
-        self.vars = {}
+        self.variables = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
         self.unary_operators = ['\+\+', '\-\-']  #TODO: dont forget the r is for raw string representation
 
-    def evaluate(self, expression_series):
-        self.single_line_expressions = expression_series.split('\n')
+    def evaluate(self, expressions):
+        for expression in expressions.split('\n'):
+            self.evaluate_single(expression)
+        return self.variables
 
-        for expression in self.single_line_expressions:
-            self.parse_expression(expression)
-
-        self.print_variables(self.vars)
-
-    #  TODO: parse is not the right term for what it does
-    def parse_expression(self, expression):
-        expression = self.resolve_complex_unary_operations(expression)
+    def evaluate_single(self, expression):
+        expression = self.replace_assignment_shortcuts(expression)
         res=expression.split('=') #  TODO: Handle cases where expression is i++ or i+=j+=1
         # Priority 1 -> compute complex unary operators such as +=, -=, *=, /=
         key = res[0]
         exp = res[1]
-        self.vars[key] = self.compute(exp)
+        self.variables[key] = self.compute(exp)
 
     def compute(self, expression):
         #TODO: check if this if condition is necessery in both compute and compute_without_brackets
-        if self.is_int(expression):
+        if is_int(expression):
             return int(expression)
         #TODO: check if expression is blank maybe? maybe expression is '()'
 
@@ -50,24 +47,30 @@ class ExpressionCalculator:
 
         return res
 
-    def resolve_complex_unary_operations(self, expression):
-        p = re.compile('(\w*[A-Za-z]+\w*) *(([\+\-\*\/])=)+')#  TODO: dissmember this into smaller chunks so it would be readable, maybe to an outer function
+    @staticmethod
+    def replace_assignment_shortcuts(expression):
+        """
+        Replaces assignment shortcuts such as '+=' with their full syntax
+        Example: x+=3 will become x=x+3
+        """
+        var_name_rgx = r'(\w*[A-Za-z]+\w*)'
+        op_rgx = r'(([\+\-\*\/])=)+'
+        p = re.compile(var_name_rgx+' *'+op_rgx)
 
-        last_index = 0 #This is duplicate code, I can surely export it to an external function
-        modified_expression = ""
-        cnt_brackets=0
+        idx = 0  #  TODO:This is duplicate code, I can surely export it to an external function
+        new_exp = ""
         for m in p.finditer(expression):
             var = m.group(1)
-            operator = m.group(3)
-            modified_expression += expression[last_index:m.start(2)]+"="+var+operator+'('
-            last_index=m.end(2)
-            cnt_brackets+=1
+            op = m.group(3)
+            new_exp += expression[idx:m.start(2)]+"="+var+op+'('
+            idx = m.end(2)
 
-        if modified_expression=="":
+        if new_exp == "":
             return expression
 
-        modified_expression+= expression[last_index:]+")"*cnt_brackets
-        return modified_expression
+        cnt_brackets = len(p.findall(expression))
+        new_exp += expression[idx:]+")"*cnt_brackets
+        return new_exp
 
     def resolve_inner_brackets(self, expression):
         while '(' in expression:
@@ -86,16 +89,16 @@ class ExpressionCalculator:
             p = re.compile(r'[a-zA-Z]+' + unary_operand)  # TODO: Get an inner-depth understanding of how this works
             for m in p.finditer(expression):
                 var = expression[m.start():m.end() - 2]  # Reducing the -- or ++ #TODO: This might not be best practice
-                if var not in self.vars:
+                if var not in self.variables:
                     print(
                         var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
                     return None
-                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
+                modified_expression += (expression[last_index:m.start()] + str(self.variables[var]))
                 last_index = m.end()
                 if unary_operand == '\+\+':  # TODO: Definetly not best practice
-                    self.vars[var] += 1
+                    self.variables[var] += 1
                 elif unary_operand == '\-\-':
-                    self.vars[var] -= 1
+                    self.variables[var] -= 1
                 else:
                     print('not suppose to arrive here')
 
@@ -108,18 +111,18 @@ class ExpressionCalculator:
                 r'' + unary_operand + '[a-zA-Z]+')  # TODO: Get an inner-depth understanding of how this works
             for m in p.finditer(expression):
                 var = expression[m.start() + 2:m.end()]  # Reducing the -- or ++  #TODO: This might not be best practice
-                if var not in self.vars:
+                if var not in self.variables:
                     print(
                         var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
                     return None
 
                 if unary_operand == '\+\+':  # TODO: Definetly not best practice, replace with an enum
-                    self.vars[var] += 1
+                    self.variables[var] += 1
                 elif unary_operand == '\-\-':
-                    self.vars[var] -= 1
+                    self.variables[var] -= 1
                 else:
                     print('not suppose to arrive here')
-                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
+                modified_expression += (expression[last_index:m.start()] + str(self.variables[var]))
                 last_index = m.end()
 
             if last_index != 0:  # Reset
@@ -150,7 +153,7 @@ class ExpressionCalculator:
 
     #Returns a value, it can manipulate the value
     def compute_without_brackets(self, expression):
-        if self.is_int(expression):
+        if is_int(expression):
             return int(expression)
         special_slice_regex='((?<!\*)(?!^))\\{}'
         res = None
@@ -184,33 +187,19 @@ class ExpressionCalculator:
 
                 return res
 
-        if expression in self.vars:
-            return self.vars[expression]
+        if expression in self.variables:
+            return self.variables[expression]
 
         #TODO: Replace with an exception?
         print("Unresolved expression:"+expression)
         return None
 
-    #TODO: This may be further improved
-    @staticmethod
-    def print_variables(varDict):
-        print("(", end="")
-        for idx, key in enumerate(varDict):
-            if idx > 0:
-                print(",", end="")
-            print(str(key) + "=" + str(varDict[key]), end="")
-        print(")")
 
-    @staticmethod  #TODO: we can export this to outside of the class
-    def is_int(num):
-        #We can use exceptions but they are expensive so we would prefere to use as a workflow. instead we can use regular expressions
-        if re.match(r'^[-+]?(\d)+$',num):
-            return True
-        return False
+myExpression = ExpressionCalculator()
+res = myExpression.evaluate("i=0\n"
+                            "j=++i\n"
+                            "x=i+++5\n"
+                            "y=5+3*10\n"
+                            "i+=y")
 
-MyExpression = ExpressionCalculator()
-MyExpression.evaluate("i=0\n"
-                      "j=++i\n"
-                      "x=i+++5\n"
-                      "y=5+3*10\n"
-                      "i+=y")
+print_variables(res)
