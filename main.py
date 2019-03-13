@@ -1,15 +1,13 @@
 from utilities import *
 import re
 
-
 #  TODO: What happens if you divied by zero?
-
 
 class ExpressionCalculator:
     def __init__(self):
         self.variables = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
-        self.unary_operators = ['\+\+', '\-\-']  # TODO: dont forget the r is for raw string representation
+        self.unary_operators = ['\+\+', '\-\-']
 
     def evaluate(self, expressions):
         # TODO: What happens if expressions is None/empty/int and not str?
@@ -31,16 +29,9 @@ class ExpressionCalculator:
         # TODO: export '(' to an enum or something parallel to left_bracket
         # TODO: test the case in which the expression has ')' but not '('
         expression = self.resolve_brackets(expression)
-
-        # Priority 3 -> compute unary operators
         expression = self.resolve_unary_operations(expression)
-
-        # #Priority 4 -> compute concatd +- signs
         expression = self.resolve_concatenated_signs(expression)
-
-        # Pririty 5 -> compute binary operators
         res = self.compute_without_brackets(expression)
-
         return res
 
     @staticmethod
@@ -78,13 +69,9 @@ class ExpressionCalculator:
             lft_idx = expression.rfind('(')
             rgt_idx = expression.find(')', lft_idx)
             if rgt_idx == -1:
-                print("No matching closing bracket for the one at:"+str(lft_idx))
-                return None
+                raise SyntaxError("No matching closing bracket for opening bracket at:"+str(lft_idx))
             val = self.compute(expression[lft_idx + 1:rgt_idx])  # Brackets inner expression
-            if val is None:
-                return None
             expression = expression[:lft_idx] + str(val) + expression[rgt_idx + 1:]  # Concatenate result value
-
         return expression
 
     def resolve_unary_operations(self, expression):
