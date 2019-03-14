@@ -1,216 +1,218 @@
+from utilities import *
 import re
-#TODO: Go over the naming convention
-#TODO: What happens if you divied by zero?
+
 
 class ExpressionCalculator:
     def __init__(self):
-        self.single_line_expressions = []
-        self.vars = {}
-        self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
-        self.unary_operators = ['\+\+', '\-\-']  #TODO: dont forget the r is for raw string representation
+        self.variables = {}
+        self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
+        self.unary_operators = ['\+\+', '\-\-']
+        self.var_regex = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
 
-    def evaluate(self, expression_series):
-        self.single_line_expressions = expression_series.split('\n')
+    def evaluate(self, expressions):
+        """
+        evaluate a series of expressions separated by newlines
+        :param expressions: a series of expressions
+        :return: a dictionary of variables-values
+        """
+        if not expressions:
+            return None
+        if type(expressions) is not str:
+            raise ValueError("expressions should be of type str not "+str(type(expressions)))
 
-        for expression in self.single_line_expressions:
-            self.parse_expression(expression)
+        for expression in expressions.split('\n'):
+            self.evaluate_line(expression)
+        return self.variables
 
-        self.print_variables(self.vars)
+    def evaluate_line(self, expression):
+        """
+        Evaluates a single expression
+        """
+        expression = self.replace_assignment_shortcuts(expression)
+        if '=' not in expression:
+            raise SyntaxError("expression should have an assignment char ")
 
-    #  TODO: parse is not the right term for what it does
-    def parse_expression(self, expression):
-        expression = self.resolve_complex_unary_operations(expression)
-        res=expression.split('=') #  TODO: Handle cases where expression is i++ or i+=j+=1
-        # Priority 1 -> compute complex unary operators such as +=, -=, *=, /=
-        key = res[0]
-        exp = res[1]
-        self.vars[key] = self.compute(exp)
+        key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
+        if not re.search(self.var_regex,key):
+            raise SyntaxError("var must contain at least one letter and are constructed of alphanumeric chars only. "+key+" is invalid")
+
+        self.variables[key] = self.compute(expression)
 
     def compute(self, expression):
-        #TODO: check if this if condition is necessery in both compute and compute_without_brackets
-        if self.is_int(expression):
+        """
+        Computes the arithmetic part of the expression
+        """
+        if not expression:
+            return None
+        if is_int(expression):
             return int(expression)
-        #TODO: check if expression is blank maybe? maybe expression is '()'
 
+        expression = self.resolve_brackets(expression)              # Brackets first
+        expression = self.resolve_unary_operators(expression)       # Unary operators second (ex. a++)
+        expression = self.resolve_concatenated_signs(expression)    # concatenated signs third (ex. 4--5 is 4+5)
+        return self.compute_basic_expression(expression)            # basic +-/* computation are last
 
+    def replace_assignment_shortcuts(self, expression):
+        """
+        Replaces assignment shortcuts such as '+=' with their full syntax
+        Example: x+=10-5 will become x=x+(10-5)
+        """
+        op_rgx = r'(([\+\-\*\/])=)+'
+        p = re.compile(self.var_regex + ' *' + op_rgx)
 
-        #Priority 2 -> compute inner brackets
-        #TODO: export '(' to an enum or something parallel to left_bracket
-        #TODO: test the case in which the expression has ')' but not '('
-        expression = self.resolve_inner_brackets(expression)
-
-        #Priority 3 -> compute unary operators
-        expression = self.resolve_unary_operations(expression)
-
-        # #Priority 4 -> compute concatd +- signs
-        expression = self.resolve_concatenated_signs(expression)
-
-        #Pririty 5 -> compute binary operators
-        res = self.compute_without_brackets(expression)
-
-        return res
-
-    def resolve_complex_unary_operations(self, expression):
-        p = re.compile('(\w*[A-Za-z]+\w*) *(([\+\-\*\/])=)+')#  TODO: dissmember this into smaller chunks so it would be readable, maybe to an outer function
-
-        last_index = 0 #This is duplicate code, I can surely export it to an external function
-        modified_expression = ""
-        cnt_brackets=0
+        idx = 0
+        new_exp = ""
         for m in p.finditer(expression):
             var = m.group(1)
-            operator = m.group(3)
-            modified_expression += expression[last_index:m.start(2)]+"="+var+operator+'('
-            last_index=m.end(2)
-            cnt_brackets+=1
+            op = m.group(3)
+            new_exp += expression[idx:m.start(2)] + "=" + var + op + '('
+            idx = m.end(2)
 
-        if modified_expression=="":
+        if new_exp == "":
             return expression
 
-        modified_expression+= expression[last_index:]+")"*cnt_brackets
-        return modified_expression
+        cnt_brackets = len(p.findall(expression))
+        new_exp += expression[idx:] + ")" * cnt_brackets
+        return new_exp
 
-    def resolve_inner_brackets(self, expression):
+    def resolve_brackets(self, expression):
+        """
+        Computes the brackets if exists using recursion
+        :param expression: a mathematical expression that may contain brackets
+        :return: mathematical expression after the brackets were computed
+        """
+        # TODO: export '(' to an enum or something parallel to left_bracket
         while '(' in expression:
             lft_idx = expression.rfind('(')
-            rgt_idx = expression.find(')',lft_idx)
-            res = self.compute(expression[lft_idx+1:rgt_idx]) #Without brackets
-            expression = expression[:lft_idx]+str(res)+expression[rgt_idx+1:]
+            rgt_idx = expression.find(')', lft_idx)
+            if rgt_idx == -1:
+                raise SyntaxError("No matching closing bracket for opening bracket at:" + str(lft_idx))
+            val = self.compute(expression[lft_idx + 1:rgt_idx])  # Brackets inner expression
+            expression = expression[:lft_idx] + str(val) + expression[rgt_idx + 1:]  # Concatenate result value
+        return expression
+
+    def resolve_unary_operators(self, expression):
+        """
+        Computes and assign the value of unary operations
+        example: i++ or i--
+        :param expression: mathematical expression that may consist of unary operations
+        :return: a mathematical expression after unary operations are resolved
+        """
+        for op in self.unary_operators:
+
+            for p in [self.var_regex + op, op + self.var_regex]:
+                # TODO: Get an inner-depth understanding of how re.compile works
+                idx = 0
+                new_exp = ""
+                for m in re.compile(p).finditer(expression):
+                    var = m.group(1)
+                    if var not in self.variables:
+                        raise ValueError("variable " + var + " referenced before assignment")
+
+                    if p == (self.var_regex + op):  # Assign value before operator
+                        new_exp += expression[idx:m.start()] + str(self.variables[var])
+
+                    if op == '\+\+':  # TODO: Definetly not best practice
+                        self.variables[var] += 1
+                    elif op == '\-\-':
+                        self.variables[var] -= 1
+                    else:
+                        raise ValueError('Operator ' + op + ' not implemented')
+
+                    if p == (op + self.var_regex):  # Assign value after operator
+                        new_exp += expression[idx:m.start()] + str(self.variables[var])
+
+                    idx = m.end()
+
+                if idx != 0:  # Reset
+                    expression = new_exp + expression[idx:]
 
         return expression
 
-    def resolve_unary_operations(self, expression):
-        last_index = 0
-        modified_expression = ""
-        for unary_operand in self.unary_operators:
-            #TODO: Change this condition, somevariables may contains numbers such as tmp2
-            p = re.compile(r'[a-zA-Z]+' + unary_operand)  # TODO: Get an inner-depth understanding of how this works
-            for m in p.finditer(expression):
-                var = expression[m.start():m.end() - 2]  # Reducing the -- or ++ #TODO: This might not be best practice
-                if var not in self.vars:
-                    print(
-                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
-                    return None
-                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
-                last_index = m.end()
-                if unary_operand == '\+\+':  # TODO: Definetly not best practice
-                    self.vars[var] += 1
-                elif unary_operand == '\-\-':
-                    self.vars[var] -= 1
-                else:
-                    print('not suppose to arrive here')
-
-            if last_index != 0:  # Reset
-                expression = modified_expression + expression[last_index:]
-                last_index = 0
-                modified_expression = ""
-
-            p = re.compile(
-                r'' + unary_operand + '[a-zA-Z]+')  # TODO: Get an inner-depth understanding of how this works
-            for m in p.finditer(expression):
-                var = expression[m.start() + 2:m.end()]  # Reducing the -- or ++  #TODO: This might not be best practice
-                if var not in self.vars:
-                    print(
-                        var + " assigned before assertion")  # Double check that this is the correct syntex you want to use for the message
-                    return None
-
-                if unary_operand == '\+\+':  # TODO: Definetly not best practice, replace with an enum
-                    self.vars[var] += 1
-                elif unary_operand == '\-\-':
-                    self.vars[var] -= 1
-                else:
-                    print('not suppose to arrive here')
-                modified_expression += (expression[last_index:m.start()] + str(self.vars[var]))
-                last_index = m.end()
-
-            if last_index != 0:  # Reset
-                expression = modified_expression + expression[last_index + 1:]
-                last_index = 0
-                modified_expression = ""
-
-        return expression
-
-    def resolve_concatenated_signs(self, expression):
-        p = re.compile('[+-]{2,}')
-        last_index = 0
-        modified_expression = ""
-        for m in p.finditer(expression):
+    @staticmethod
+    def resolve_concatenated_signs(expression):
+        """
+        Aggregates segments of plus and minus signs that are concatenated
+        :param expression: a mathematical expression that may contain segments of concatenated plus/minus signs
+        :return: mathematical expression with aggregated plus/minus signs
+        """
+        p = '[+-]{2,}'  # Two or more concatenated signs
+        idx = 0
+        new_exp = ""
+        for m in re.compile(p).finditer(expression):
             if m.group().count('-') % 2 == 0:
                 aggregated_sign = '+'
             else:
                 aggregated_sign = '-'
 
-            modified_expression+=(expression[last_index:m.start()]+aggregated_sign)
-            last_index=m.end()
+            new_exp += expression[idx:m.start()] + aggregated_sign
+            idx = m.end()
 
-        if last_index == 0:
+        if idx == 0:
             return expression
+        new_exp += expression[idx:]
+        return new_exp
 
-        modified_expression += expression[last_index:]
-        return modified_expression
-
-    #Returns a value, it can manipulate the value
-    def compute_without_brackets(self, expression):
-        if self.is_int(expression):
+    def compute_basic_expression(self, expression):
+        """
+        Computes the value of an expression that contains only basic +-*/ binary operators
+        :param expression: contains no brackets, '=' or unary operators. only binary arithmetic operators
+        :return: the result of the basic expression according to arithmetic rules
+        """
+        if is_int(expression):
             return int(expression)
-        special_slice_regex='((?<!\*)(?!^))\\{}'
+
+        p = r'((?<![\*\/])(?!^))\{}'  # TODO: Maybe add an example for understanding simplification
+        """
+        p is a regex pattern that is constructed of:
+        1. a lookbehind for MUL and DIV operations followed by POSITIVE or NEGATIVE sign
+        2. a lookahead for a POSITIVE or NEGATIVE sign at prefix
+        This signs plus/minus signs should not be splitted
+        """
         res = None
-        #Instead of iterating through all operators we can send as a parameter the ones that were left, its a complexity-memory tradeoff
-        for operator in self.binary_operators:
-            if operator in expression:
-                if operator in ['-', '+']: #This is a special case due to the affect that the minus sign has before numbers
-                    sub_expressions = re.compile(special_slice_regex.format(operator)).split(expression)
+        for op in self.binary_operators:
+            if op in expression:
+                if op in ['-', '+']:  # TODO:This is super complex for understanding. try and simplify it
+                    sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
-                    if len(sub_expressions) == 1:  #There was no real need to split, If this is too complex we can remove it
-                        continue
+                    if len(sub_expressions) == 1:
+                        continue  # TODO: There was no real need to split, If this is too complex we can remove it
                 else:
-                    sub_expressions = expression.split(operator) #The problem is with the split here. if I could do a split based on regex it would be great
+                    sub_expressions = expression.split(op)
 
-                for item in sub_expressions:
-                    item = self.compute_without_brackets(item)
-                    if not item: #Unresolved expression (item) - Bubble the error upwards
-                        return None
-                    elif not res:
-                        res = item
-                    elif operator == '+':
-                        res += item
-                    elif operator == '-':
-                        res -= item
-                    elif operator == '*':
-                        res *= item
-                    elif operator == '/':
-                        res /= item
+                for sub_exp in sub_expressions:
+                    val = self.compute_basic_expression(sub_exp)
+                    if not res:
+                        res = val
+                    elif op == '+':
+                        res += val
+                    elif op == '-':
+                        res -= val
+                    elif op == '*':
+                        res *= val
+                    elif op == '/':
+                        if val == 0:
+                            raise ArithmeticError("Division by zero is forbidden")
+                        res /= val
                     else:
-                        print("Exception, not suppose to arrive here")
+                        raise ValueError('Operator ' + op + ' not implemented')
+                return int(res)
 
-                return res
+        if expression in self.variables:
+            return self.variables[expression]
+        raise SyntaxError("Unresolved expression:" + expression)
 
-        if expression in self.vars:
-            return self.vars[expression]
 
-        #TODO: Replace with an exception?
-        print("Unresolved expression:"+expression)
-        return None
+myExpression = ExpressionCalculator()
+# a = myExpression.evaluate("i=3")
 
-    #TODO: This may be further improved
-    @staticmethod
-    def print_variables(varDict):
-        print("(", end="")
-        for idx, key in enumerate(varDict):
-            if idx > 0:
-                print(",", end="")
-            print(str(key) + "=" + str(varDict[key]), end="")
-        print(")")
+a = myExpression.evaluate("i=0\n"
+                          "j=++i\n"
+                          "x=i+++5\n"
+                          "y=5+3*10\n"
+                          "i+=y\n"
+                          "b=3/-3\n"
+                          "c=-4*-4\n"
+                          "d=+4*-5/-1")
 
-    @staticmethod  #TODO: we can export this to outside of the class
-    def is_int(num):
-        #We can use exceptions but they are expensive so we would prefere to use as a workflow. instead we can use regular expressions
-        if re.match(r'^[-+]?(\d)+$',num):
-            return True
-        return False
-
-MyExpression = ExpressionCalculator()
-MyExpression.evaluate("i=0\n"
-                      "j=++i\n"
-                      "x=i+++5\n"
-                      "y=5+3*10\n"
-                      "i+=y")
+print_variables(a)
