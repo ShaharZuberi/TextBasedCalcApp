@@ -7,6 +7,7 @@ class ExpressionCalculator:
         self.variables = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
         self.unary_operators = ['\+\+', '\-\-']
+        self.var_regex = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
 
     def evaluate(self, expressions):
         """
@@ -24,13 +25,20 @@ class ExpressionCalculator:
         """
         expression = self.replace_assignment_shortcuts(expression)
         if '=' not in expression:
+            raise SyntaxError("expression should have an assignment char ")
+
         key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
+        if not re.search(self.var_regex,key):
+            raise SyntaxError("var must contain at least one letter and are constructed of alphanumeric chars only. "+key+" is invalid")
+
         self.variables[key] = self.compute(expression)
 
     def compute(self, expression):
         """
         Computes the arithmetic part of the expression
         """
+        if not expression:
+            return None
         if is_int(expression):
             return int(expression)
 
@@ -44,9 +52,8 @@ class ExpressionCalculator:
         Replaces assignment shortcuts such as '+=' with their full syntax
         Example: x+=10-5 will become x=x+(10-5)
         """
-        var_name_rgx = r'(\w*[A-Za-z]+\w*)'
         op_rgx = r'(([\+\-\*\/])=)+'
-        p = re.compile(var_name_rgx + ' *' + op_rgx)
+        p = re.compile(self.var_regex + ' *' + op_rgx)
 
         idx = 0
         new_exp = ""
@@ -87,8 +94,8 @@ class ExpressionCalculator:
         :return: a mathematical expression after unary operations are resolved
         """
         for op in self.unary_operators:
-            var_name_rgx = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (to avoid a var that is only digits)
-            for p in [var_name_rgx + op, op + var_name_rgx]:
+
+            for p in [self.var_regex + op, op + self.var_regex]:
                 # TODO: Get an inner-depth understanding of how re.compile works
                 idx = 0
                 new_exp = ""
@@ -97,7 +104,7 @@ class ExpressionCalculator:
                     if var not in self.variables:
                         raise ValueError("variable " + var + " referenced before assignment")
 
-                    if p == (var_name_rgx + op):  # Assign value before operator
+                    if p == (self.var_regex + op):  # Assign value before operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
                     if op == '\+\+':  # TODO: Definetly not best practice
@@ -107,7 +114,7 @@ class ExpressionCalculator:
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
 
-                    if p == (op + var_name_rgx):  # Assign value after operator
+                    if p == (op + self.var_regex):  # Assign value after operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
                     idx = m.end()
