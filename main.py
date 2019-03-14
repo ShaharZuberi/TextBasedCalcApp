@@ -191,7 +191,7 @@ class ExpressionCalculator:
                         res /= val
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
-                return res
+                return int(res)
 
         if expression in self.variables:
             return self.variables[expression]
