@@ -2,8 +2,6 @@ from utilities import *
 import re
 
 
-#  TODO: What happens if you divied by zero?
-
 class ExpressionCalculator:
     def __init__(self):
         self.variables = {}
@@ -11,31 +9,37 @@ class ExpressionCalculator:
         self.unary_operators = ['\+\+', '\-\-']
 
     def evaluate(self, expressions):
-        # TODO: What happens if expressions is None/empty/int and not str?
+        """
+        evaluate a series of expressions separated by newlines
+        :param expressions: a series of expressions
+        :return: a dictionary of variables-values
+        """
         for expression in expressions.split('\n'):
-            self.evaluate_single(expression)
+            self.evaluate_line(expression)
         return self.variables
 
-    def evaluate_single(self, expression):
+    def evaluate_line(self, expression):
+        """
+        Evaluates a single expression
+        """
         expression = self.replace_assignment_shortcuts(expression)
-        #  TODO: Handle cases where expression is i++ or i+=j+=1(This is party treated)
+        if '=' not in expression:
         key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
         self.variables[key] = self.compute(expression)
 
     def compute(self, expression):
+        """
+        Computes the arithmetic part of the expression
+        """
         if is_int(expression):
             return int(expression)
-        # TODO: check if expression is blank maybe? maybe expression is '()'
-        # Priority 2 -> compute inner brackets
-        # TODO: export '(' to an enum or something parallel to left_bracket
-        # TODO: test the case in which the expression has ')' but not '('
-        expression = self.resolve_brackets(expression)
-        expression = self.resolve_unary_operations(expression)
-        expression = self.resolve_concatenated_signs(expression)
-        return self.compute_basic_expression(expression)
 
-    @staticmethod
-    def replace_assignment_shortcuts(expression):
+        expression = self.resolve_brackets(expression)              # Brackets first
+        expression = self.resolve_unary_operators(expression)       # Unary operators second (ex. a++)
+        expression = self.resolve_concatenated_signs(expression)    # concatenated signs third (ex. 4--5 is 4+5)
+        return self.compute_basic_expression(expression)            # basic +-/* computation are last
+
+    def replace_assignment_shortcuts(self, expression):
         """
         Replaces assignment shortcuts such as '+=' with their full syntax
         Example: x+=10-5 will become x=x+(10-5)
@@ -44,7 +48,7 @@ class ExpressionCalculator:
         op_rgx = r'(([\+\-\*\/])=)+'
         p = re.compile(var_name_rgx + ' *' + op_rgx)
 
-        idx = 0  # TODO:This is duplicate code, I can surely export it to an external function
+        idx = 0
         new_exp = ""
         for m in p.finditer(expression):
             var = m.group(1)
@@ -62,9 +66,10 @@ class ExpressionCalculator:
     def resolve_brackets(self, expression):
         """
         Computes the brackets if exists using recursion
-        :param expression: mathematical expression that may contains brackets
+        :param expression: a mathematical expression that may contain brackets
         :return: mathematical expression after the brackets were computed
         """
+        # TODO: export '(' to an enum or something parallel to left_bracket
         while '(' in expression:
             lft_idx = expression.rfind('(')
             rgt_idx = expression.find(')', lft_idx)
@@ -114,6 +119,11 @@ class ExpressionCalculator:
 
     @staticmethod
     def resolve_concatenated_signs(expression):
+        """
+        Aggregates segments of plus and minus signs that are concatenated
+        :param expression: a mathematical expression that may contain segments of concatenated plus/minus signs
+        :return: mathematical expression with aggregated plus/minus signs
+        """
         p = '[+-]{2,}'  # Two or more concatenated signs
         idx = 0
         new_exp = ""
@@ -133,22 +143,28 @@ class ExpressionCalculator:
 
     def compute_basic_expression(self, expression):
         """
-        TODO: Fill this up
-        :param expression: an expression that contains no brackets, '=' or unary operators. only binary arithmetic operators
-        :return: the value of the basic expression according to arithmetic rules
+        Computes the value of an expression that contains only basic +-*/ binary operators
+        :param expression: contains no brackets, '=' or unary operators. only binary arithmetic operators
+        :return: the result of the basic expression according to arithmetic rules
         """
         if is_int(expression):
             return int(expression)
 
-        p = '((?<!\*)(?!^))\\{}'  #Regex lookbehind for MUL and DIV operations followed by POSITIVE or NEGATIVE sign and a lookahead fora POSITIVE or NEGATIVE sign as prefix #TODO: Test to see if it works for x=3/-3 also
+        p = r'((?<![\*\/])(?!^))\{}'  # TODO: Maybe add an example for understanding simplification
+        """
+        p is a regex pattern that is constructed of:
+        1. a lookbehind for MUL and DIV operations followed by POSITIVE or NEGATIVE sign
+        2. a lookahead for a POSITIVE or NEGATIVE sign at prefix
+        This signs plus/minus signs should not be splitted
+        """
         res = None
         for op in self.binary_operators:
             if op in expression:
-                if op in ['-', '+']:  # This is a special case due to the affect that minus/plus signs before numbers can interperet as potivity signs
+                if op in ['-', '+']:  # TODO:This is super complex for understanding. try and simplify it
                     sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(sub_expressions) == 1:
-                        continue  # There was no real need to split, If this is too complex we can remove it
+                        continue  # TODO: There was no real need to split, If this is too complex we can remove it
                 else:
                     sub_expressions = expression.split(op)
 
