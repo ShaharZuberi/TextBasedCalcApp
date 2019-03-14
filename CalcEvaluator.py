@@ -2,7 +2,7 @@ from utilities import *
 import re
 
 
-class ExpressionCalculator:
+class CalcEvaluator:
     def __init__(self):
         self.variables = {}
         self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
@@ -22,7 +22,8 @@ class ExpressionCalculator:
 
         for expression in expressions.split('\n'):
             self.evaluate_line(expression)
-        return self.variables
+
+        return vars_to_string(self.variables)
 
     def evaluate_line(self, expression):
         """
