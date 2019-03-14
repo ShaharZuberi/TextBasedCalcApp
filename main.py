@@ -5,7 +5,7 @@ import re
 class ExpressionCalculator:
     def __init__(self):
         self.variables = {}
-        self.binary_operators = ['+', '-', '/', '*']  # elements order have a logic influence
+        self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
         self.unary_operators = ['\+\+', '\-\-']
         self.var_regex = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
 
@@ -15,6 +15,11 @@ class ExpressionCalculator:
         :param expressions: a series of expressions
         :return: a dictionary of variables-values
         """
+        if not expressions:
+            return None
+        if type(expressions) is not str:
+            raise ValueError("expressions should be of type str not "+str(type(expressions)))
+
         for expression in expressions.split('\n'):
             self.evaluate_line(expression)
         return self.variables
@@ -86,7 +91,7 @@ class ExpressionCalculator:
             expression = expression[:lft_idx] + str(val) + expression[rgt_idx + 1:]  # Concatenate result value
         return expression
 
-    def resolve_unary_operations(self, expression):
+    def resolve_unary_operators(self, expression):
         """
         Computes and assign the value of unary operations
         example: i++ or i--
@@ -199,10 +204,15 @@ class ExpressionCalculator:
 
 
 myExpression = ExpressionCalculator()
+# a = myExpression.evaluate("i=3")
+
 a = myExpression.evaluate("i=0\n"
-                            "j=++i\n"
-                            "x=i+++5\n"
-                            "y=5+3*10\n"
-                            "i+=y")
+                          "j=++i\n"
+                          "x=i+++5\n"
+                          "y=5+3*10\n"
+                          "i+=y\n"
+                          "b=3/-3\n"
+                          "c=-4*-4\n"
+                          "d=+4*-5/-1")
 
 print_variables(a)
