@@ -1,8 +1,18 @@
-from utilities import *
 import re
 
 
-class CalcEvaluator:
+def is_int(num):
+    """
+    Checks if a num is a number using regex
+    Info 1: We could possibly use exceptions instead of regex but they are more expensive to use in a workflow
+    Info 2: This could be extended to support floats
+    """
+    p = r'^[-+]?(\d)+$' # possible positivity sign followed by digits
+    if re.match(p, num):
+        return True
+    return False
+
+class Evaluator:
     def __init__(self):
         #TODO: This all belongs outside of the init, they are constant and not something that is relavent only to the instance
         self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
@@ -225,16 +235,3 @@ class CalcEvaluator:
 
     def clear_variables(self):
         self.variables.clear()
-# myExpression = CalcEvaluator()
-# # a = myExpression.evaluate("i=3")
-#
-# a = myExpression.evaluate("i=0\n"
-#                           "j=++i\n"
-#                           "x=i+++5\n"
-#                           "y=5+3*10\n"
-#                           "i+=y\n"
-#                           "b=3/-3\n"
-#                           "c=-4*-4\n"
-#                           "d=+4*-5/-1")
-#
-# print_variables(a)

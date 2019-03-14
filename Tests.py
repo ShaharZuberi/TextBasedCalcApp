@@ -1,7 +1,7 @@
 import unittest
-import CalcEvaluator #TODO: Rename to TextBasedCalc or something like that
+import TextBasedCalculator #TODO: Rename to TextBasedCalc or something like that
 
-evaluator = CalcEvaluator.CalcEvaluator()
+evaluator = TextBasedCalculator.Evaluator()
 
 
 class TestMethods(unittest.TestCase):
@@ -45,16 +45,13 @@ class TestMethods(unittest.TestCase):
                                             "d/=-5"), '(a=12,b=-2,c=80,d=-20)')
 
     def test_mixed_complex_scenarios(self):
-        #TODO: Complete this
-        print("...")
-        # self.assertEqual(evaluator.evaluate("a=\n"
-        #                                     "b=0\n"
-        #                                     "c=2\n"
-        #                                     "d=100\n"
-        #                                     "a += 4*3\n"
-        #                                     "b -= 2\n"
-        #                                     "c*=20*c\n"
-        #                                     "d/=-5"), '(a=12,b=-2,c=80,d=-20)')
+        self.assertEqual(evaluator.evaluate("a=1\n"
+                                            "b=a++ + a++\n"
+                                            "c=3*+4\n"
+                                            "d=-10--9\n"
+                                            "e=-4-6*-6*-4-2\n"
+                                            "tmp2=3/1\n"
+                                            "tmp3=tmp2++"), '(a=3,b=3,c=12,d=-1,e=-150,tmp2=4,tmp3=3)')
 
     def test_blank_inputs(self):
         self.assertEqual(evaluator.evaluate(""), None)
@@ -88,7 +85,6 @@ class TestMethods(unittest.TestCase):
     def test_arithmetic_error(self):
         self.assertRaises(ArithmeticError, evaluator.evaluate, "x=1/0")
 
-    #TODO: Test for x=a, its a syntax error and not a value one
 
 if __name__ == '__main__':
     unittest.main()
