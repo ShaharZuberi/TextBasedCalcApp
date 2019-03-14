@@ -1,13 +1,24 @@
-from utilities import *
 import re
 
 
-class ExpressionCalculator:
+def is_int(num):
+    """
+    Checks if a num is a number using regex
+    Info 1: We could possibly use exceptions instead of regex but they are more expensive to use in a workflow
+    Info 2: This could be extended to support floats
+    """
+    p = r'^[-+]?(\d)+$' # possible positivity sign followed by digits
+    if re.match(p, num):
+        return True
+    return False
+
+class Evaluator:
     def __init__(self):
-        self.variables = {}
+        #TODO: This all belongs outside of the init, they are constant and not something that is relavent only to the instance
         self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
         self.unary_operators = ['\+\+', '\-\-']
         self.var_regex = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
+        self.variables = {}
 
     def evaluate(self, expressions):
         """
@@ -20,20 +31,26 @@ class ExpressionCalculator:
         if type(expressions) is not str:
             raise ValueError("expressions should be of type str not "+str(type(expressions)))
 
-        for expression in expressions.split('\n'):
+        for expression in expressions.strip().split('\n'):
             self.evaluate_line(expression)
-        return self.variables
+
+        res = self.vars_to_string()
+        self.clear_variables()
+        return res
 
     def evaluate_line(self, expression):
         """
         Evaluates a single expression
         """
+        if not expression:
+            return None
+        expression = expression.replace(" ", "")
         expression = self.replace_assignment_shortcuts(expression)
         if '=' not in expression:
             raise SyntaxError("expression should have an assignment char ")
 
         key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
-        if not re.search(self.var_regex,key):
+        if not re.search('^'+self.var_regex+'$', key):
             raise SyntaxError("var must contain at least one letter and are constructed of alphanumeric chars only. "+key+" is invalid")
 
         self.variables[key] = self.compute(expression)
@@ -182,7 +199,7 @@ class ExpressionCalculator:
 
                 for sub_exp in sub_expressions:
                     val = self.compute_basic_expression(sub_exp)
-                    if not res:
+                    if res is None:
                         res = val
                     elif op == '+':
                         res += val
@@ -202,17 +219,19 @@ class ExpressionCalculator:
             return self.variables[expression]
         raise SyntaxError("Unresolved expression:" + expression)
 
+    def vars_to_string(self):
+        if not self.variables:
+            print("No variables found.")
+            return
 
-myExpression = ExpressionCalculator()
-# a = myExpression.evaluate("i=3")
+        res = "("
+        for idx, (key, value) in enumerate(self.variables.items()):
+            if idx > 0:
+                res += ","
+            res += str(key) + "=" + str(value)
+        res += ")"
 
-a = myExpression.evaluate("i=0\n"
-                          "j=++i\n"
-                          "x=i+++5\n"
-                          "y=5+3*10\n"
-                          "i+=y\n"
-                          "b=3/-3\n"
-                          "c=-4*-4\n"
-                          "d=+4*-5/-1")
+        return res
 
-print_variables(a)
+    def clear_variables(self):
+        self.variables.clear()
