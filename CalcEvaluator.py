@@ -40,7 +40,7 @@ class CalcEvaluator:
             raise SyntaxError("expression should have an assignment char ")
 
         key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
-        if not re.search(self.var_regex, key):
+        if not re.search('^'+self.var_regex+'$', key):
             raise SyntaxError("var must contain at least one letter and are constructed of alphanumeric chars only. "+key+" is invalid")
 
         self.variables[key] = self.compute(expression)

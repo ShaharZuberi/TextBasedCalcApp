@@ -45,7 +45,8 @@ class TestMethods(unittest.TestCase):
                                             "d/=-5"), '(a=12,b=-2,c=80,d=-20)')
 
     def test_mixed_complex_scenarios(self):
-        #TODO
+        #TODO: Complete this
+        print("...")
         # self.assertEqual(evaluator.evaluate("a=\n"
         #                                     "b=0\n"
         #                                     "c=2\n"
@@ -55,29 +56,39 @@ class TestMethods(unittest.TestCase):
         #                                     "c*=20*c\n"
         #                                     "d/=-5"), '(a=12,b=-2,c=80,d=-20)')
 
+    def test_blank_inputs(self):
+        self.assertEqual(evaluator.evaluate(""), None)
+        self.assertEqual(evaluator.evaluate("   "), None)
+        self.assertEqual(evaluator.evaluate("   \n"
+                                            "x=4+6"), '(x=10)')
 
-    # def advanced_tests(self):
-    #     self.assertEqual(evaluator.evaluate(""))
+    def test_value_errors(self):
+        #Parameter passed is not of type str
+        self.assertRaises(ValueError, evaluator.evaluate, 1)
+        self.assertRaises(ValueError, evaluator.evaluate, 1.2)
 
-    # def syntax_error_tests(self):
-    #     self.assertEqual(evaluator.evaluate(""))
-    #
-    # def value_error_tests(self):
-    #     self.assertEqual(evaluator.evaluate(""))
-    #
-    # def arithmetic_error_tests(self):
-    #     self.assertEqual(evaluator.evaluate(""))
+        #variable referenced before assignment
+        self.assertRaises(ValueError, evaluator.evaluate, "x=a++")
 
-    # def test_isupper(self):
-    #     self.assertTrue('FOO'.isupper())
-    #     self.assertFalse('Foo'.isupper())
-    #
-    # def test_split(self):
-    #     s = 'hello world'
-    #     self.assertEqual(s.split(), ['hello', 'world'])
-    #     # check that s.split fails when the separator is not a string
-    #     with self.assertRaises(TypeError):
-    #         s.split(2)
+    def test_syntax_errors(self):
+        #Brackets
+        self.assertRaises(SyntaxError, evaluator.evaluate, "x=(")
+        self.assertRaises(SyntaxError, evaluator.evaluate, "x=((4342)")
+        self.assertRaises(SyntaxError, evaluator.evaluate, "x=(4342))")
+        self.assertRaises(SyntaxError, evaluator.evaluate, "x=4342)")
+        self.assertRaises(SyntaxError, evaluator.evaluate, "x=)4342(")
+
+        #No assignment char
+        self.assertRaises(SyntaxError, evaluator.evaluate, "i++")
+
+        #Var is not valid
+        self.assertRaises(SyntaxError, evaluator.evaluate, "3=4")
+        self.assertRaises(SyntaxError, evaluator.evaluate, "i+3=4")
+
+    def test_arithmetic_error(self):
+        self.assertRaises(ArithmeticError, evaluator.evaluate, "x=1/0")
+
+    #TODO: Test for x=a, its a syntax error and not a value one
 
 if __name__ == '__main__':
     unittest.main()
