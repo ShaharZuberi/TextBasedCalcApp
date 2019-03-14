@@ -13,15 +13,4 @@ def is_int(num):
     return False
 
 
-def vars_to_string(varDict):
-    if not varDict:
-        print("No variables found.")
-        return
 
-    res = "("
-    for idx, (key, value) in enumerate(varDict.items()):
-        if idx > 0:
-            res += ","
-        res += str(key) + "=" + str(value)
-    res += ")"
-    return res
