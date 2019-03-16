@@ -8,18 +8,22 @@ class UnaryOperators(Enum):
 UnaryOperatorsRegexMap = {'\+\+':UnaryOperators.ADD,
                           '\-\-':UnaryOperators.SUB}
 
-class BinaryOperators(Enum):
+class MathBaseOperators(Enum):
     ADD = 1
     SUB = 2
     MUL = 3
     DIV = 4
 
-BinaryOperatorsMap = {'+':BinaryOperators.ADD,
-                      '-':BinaryOperators.SUB,
-                      '*':BinaryOperators.MUL,
-                      '/':BinaryOperators.DIV}
+# elements order has logical influence
+BinaryOperatorsMap = {'+':MathBaseOperators.ADD,
+                      '-':MathBaseOperators.SUB,
+                      '*':MathBaseOperators.MUL,
+                      '/':MathBaseOperators.DIV}
 
-BINARY_OPERATORS = ['+', '-', '/', '*']  # elements order has logical influence
+#Signs: Plus or Minus
+SignMap = {'+':MathBaseOperators.ADD,
+           '-':MathBaseOperators.SUB}
+
 VAR_REGEX = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
 
 def is_int(num):
@@ -80,7 +84,7 @@ class Evaluator:
         expression = self.resolve_brackets(expression)              # Brackets first
         expression = self.resolve_unary_operators(expression)       # Unary operators second (ex. a)
         expression = self.resolve_concatenated_signs(expression)    # concatenated signs third (ex. 4--5 is 4+5)
-        return self.compute_basic_expression(expression)            # basic +-/* computation are last
+        return int(self.compute_basic_expression(expression))            # basic +-/* computation are last
 
     def replace_assignment_shortcuts(self, expression):
         """
@@ -163,7 +167,7 @@ class Evaluator:
         :param expression: a mathematical expression that may contain segments of concatenated plus/minus signs
         :return: mathematical expression with aggregated plus/minus signs
         """
-        p = '[+-]{2,}'  # Two or more concatenated signs
+        p = '['+''.join(SignMap)+']{2,}'  # Two or more concatenated signs
         idx = 0
         new_exp = ""
         for m in re.compile(p).finditer(expression):
@@ -197,9 +201,9 @@ class Evaluator:
         Example: in x=-1-2*-3*-4-5, -1, -3 and -4 should not be splitted at '-'
         """
         res = None
-        for op in BINARY_OPERATORS:
+        for op in BinaryOperatorsMap:
             if op in expression:
-                if op in ['-', '+']:  # TODO:Use positive and negative constants
+                if op in SignMap:  # TODO:Use positive and negative constants
                     sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(sub_expressions) == 1:
@@ -211,19 +215,19 @@ class Evaluator:
                     val = self.compute_basic_expression(sub_exp)
                     if res is None:
                         res = val
-                    elif op == '+':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.ADD:
                         res += val
-                    elif op == '-':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.SUB:
                         res -= val
-                    elif op == '*':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.MUL:
                         res *= val
-                    elif op == '/':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.DIV:
                         if val == 0:
                             raise ArithmeticError("Division by zero is forbidden")
                         res /= val
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
-                return int(res)
+                return res
 
         if expression in self.variables:
             return self.variables[expression]
