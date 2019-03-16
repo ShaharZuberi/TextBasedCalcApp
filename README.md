@@ -27,4 +27,5 @@ Multiple signs:
 2. b=10----9 
 
 Multipliction of negativs
+
 3. c=-4-6*-6*-4-2
