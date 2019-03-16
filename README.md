@@ -20,5 +20,11 @@ $ python Tests.py
 4. c=a++
 5. d=b+++1
 6. e=++d+1
-7. d=-3+-+-+-2
-8. e=-4-6*-6*-4-2
+
+#### Complex problems:
+Multiple signs:
+1. a=-3+-+-+-2
+2. b=10----9 
+
+Multipliction of negativs
+3. c=-4-6*-6*-4-2
