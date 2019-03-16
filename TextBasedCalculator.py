@@ -1,30 +1,47 @@
 import re
+from enum import Enum
 
+class UnaryOperators(Enum):
+    ADD = 1
+    SUB = 2
+
+UnaryOperatorsRegexMap = {'\+\+':UnaryOperators.ADD,
+                          '\-\-':UnaryOperators.SUB}
+
+class MathBaseOperators(Enum):
+    ADD = 1
+    SUB = 2
+    MUL = 3
+    DIV = 4
+
+# elements order has logical influence
+BinaryOperatorsMap = {'+':MathBaseOperators.ADD,
+                      '-':MathBaseOperators.SUB,
+                      '*':MathBaseOperators.MUL,
+                      '/':MathBaseOperators.DIV}
+
+#Signs: Plus or Minus
+SignMap = {'+':MathBaseOperators.ADD,
+           '-':MathBaseOperators.SUB}
+
+VAR_REGEX = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
 
 def is_int(num):
-    """
-    Checks if a num is a number using regex
-    Info 1: We could possibly use exceptions instead of regex but they are more expensive to use in a workflow
-    Info 2: This could be extended to support floats
-    """
-    p = r'^[-+]?(\d)+$' # possible positivity sign followed by digits
+    #Checks if a num is a number using regex, This could be extended to support floats
+    p = r'^[-+]?(\d)+$'  # possible positivity sign followed by digits
     if re.match(p, num):
         return True
     return False
 
 class Evaluator:
     def __init__(self):
-        #TODO: This all belongs outside of the init, they are constant and not something that is relavent only to the instance
-        self.binary_operators = ['+', '-', '/', '*']  # elements order has logical influence
-        self.unary_operators = ['\+\+', '\-\-']
-        self.var_regex = r'([\w]*[A-Za-z]+[\w]*)'  # [0-9a-zA-Z_]*[A-Za-z]+[0-9a-zA-Z_]* (var can't be digits only)
         self.variables = {}
 
     def evaluate(self, expressions):
         """
         evaluate a series of expressions separated by newlines
         :param expressions: a series of expressions
-        :return: a dictionary of variables-values
+        :return: a one line summary of the variables
         """
         if not expressions:
             return None
@@ -40,18 +57,18 @@ class Evaluator:
 
     def evaluate_line(self, expression):
         """
-        Evaluates a single expression
+        Evaluates a single expression into self.variables
         """
         if not expression:
             return None
-        expression = expression.replace(" ", "")
+        expression = "".join(expression.split())
         expression = self.replace_assignment_shortcuts(expression)
         if '=' not in expression:
             raise SyntaxError("expression should have an assignment char ")
 
         key, expression = expression.split('=', 1)  # Currently assume we have one '=' in the expression
-        if not re.search('^'+self.var_regex+'$', key):
-            raise SyntaxError("var must contain at least one letter and are constructed of alphanumeric chars only. "+key+" is invalid")
+        if not re.search('^'+VAR_REGEX+'$', key):
+            raise SyntaxError("var must contain at least one letter and be constructed of alphanumeric chars only. "+key+" is invalid")
 
         self.variables[key] = self.compute(expression)
 
@@ -65,9 +82,9 @@ class Evaluator:
             return int(expression)
 
         expression = self.resolve_brackets(expression)              # Brackets first
-        expression = self.resolve_unary_operators(expression)       # Unary operators second (ex. a++)
+        expression = self.resolve_unary_operators(expression)       # Unary operators second (ex. a)
         expression = self.resolve_concatenated_signs(expression)    # concatenated signs third (ex. 4--5 is 4+5)
-        return self.compute_basic_expression(expression)            # basic +-/* computation are last
+        return int(self.compute_basic_expression(expression))            # basic +-/* computation are last
 
     def replace_assignment_shortcuts(self, expression):
         """
@@ -75,7 +92,7 @@ class Evaluator:
         Example: x+=10-5 will become x=x+(10-5)
         """
         op_rgx = r'(([\+\-\*\/])=)+'
-        p = re.compile(self.var_regex + ' *' + op_rgx)
+        p = re.compile(VAR_REGEX + ' *' + op_rgx)
 
         idx = 0
         new_exp = ""
@@ -98,7 +115,6 @@ class Evaluator:
         :param expression: a mathematical expression that may contain brackets
         :return: mathematical expression after the brackets were computed
         """
-        # TODO: export '(' to an enum or something parallel to left_bracket
         while '(' in expression:
             lft_idx = expression.rfind('(')
             rgt_idx = expression.find(')', lft_idx)
@@ -115,28 +131,26 @@ class Evaluator:
         :param expression: mathematical expression that may consist of unary operations
         :return: a mathematical expression after unary operations are resolved
         """
-        for op in self.unary_operators:
-
-            for p in [self.var_regex + op, op + self.var_regex]:
-                # TODO: Get an inner-depth understanding of how re.compile works
+        for op in UnaryOperatorsRegexMap:
+            for p in [VAR_REGEX + op, op + VAR_REGEX]:
                 idx = 0
                 new_exp = ""
-                for m in re.compile(p).finditer(expression):
+                for m in re.compile(p).finditer(expression):  # re.compile compiles the pattern given to a regex object
                     var = m.group(1)
                     if var not in self.variables:
                         raise ValueError("variable " + var + " referenced before assignment")
 
-                    if p == (self.var_regex + op):  # Assign value before operator
+                    if p == (VAR_REGEX + op):  # Assign value before operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
-                    if op == '\+\+':  # TODO: Definetly not best practice
+                    if UnaryOperatorsRegexMap[op] == UnaryOperators.ADD:
                         self.variables[var] += 1
-                    elif op == '\-\-':
+                    elif UnaryOperatorsRegexMap[op] == UnaryOperators.SUB:
                         self.variables[var] -= 1
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
 
-                    if p == (op + self.var_regex):  # Assign value after operator
+                    if p == (op + VAR_REGEX):  # Assign value after operator
                         new_exp += expression[idx:m.start()] + str(self.variables[var])
 
                     idx = m.end()
@@ -153,7 +167,7 @@ class Evaluator:
         :param expression: a mathematical expression that may contain segments of concatenated plus/minus signs
         :return: mathematical expression with aggregated plus/minus signs
         """
-        p = '[+-]{2,}'  # Two or more concatenated signs
+        p = '['+''.join(SignMap)+']{2,}'  # Two or more concatenated signs
         idx = 0
         new_exp = ""
         for m in re.compile(p).finditer(expression):
@@ -179,21 +193,21 @@ class Evaluator:
         if is_int(expression):
             return int(expression)
 
-        p = r'((?<![\*\/])(?!^))\{}'  # TODO: Maybe add an example for understanding simplification
+        p = r'((?<![\*\/])(?!^))\{}'
         """
-        p is a regex pattern that is constructed of:
+        p is a regex pattern that finds all the plus/minus signs that should be splitted except::
         1. a lookbehind for MUL and DIV operations followed by POSITIVE or NEGATIVE sign
         2. a lookahead for a POSITIVE or NEGATIVE sign at prefix
-        This signs plus/minus signs should not be splitted
+        Example: in x=-1-2*-3*-4-5, -1, -3 and -4 should not be splitted at '-'
         """
         res = None
-        for op in self.binary_operators:
+        for op in BinaryOperatorsMap:
             if op in expression:
-                if op in ['-', '+']:  # TODO:This is super complex for understanding. try and simplify it
+                if op in SignMap:  # TODO:Use positive and negative constants
                     sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(sub_expressions) == 1:
-                        continue  # TODO: There was no real need to split, If this is too complex we can remove it
+                        continue  # There was no need to split, we continue
                 else:
                     sub_expressions = expression.split(op)
 
@@ -201,19 +215,19 @@ class Evaluator:
                     val = self.compute_basic_expression(sub_exp)
                     if res is None:
                         res = val
-                    elif op == '+':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.ADD:
                         res += val
-                    elif op == '-':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.SUB:
                         res -= val
-                    elif op == '*':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.MUL:
                         res *= val
-                    elif op == '/':
+                    elif BinaryOperatorsMap[op] == MathBaseOperators.DIV:
                         if val == 0:
                             raise ArithmeticError("Division by zero is forbidden")
                         res /= val
                     else:
                         raise ValueError('Operator ' + op + ' not implemented')
-                return int(res)
+                return res
 
         if expression in self.variables:
             return self.variables[expression]
