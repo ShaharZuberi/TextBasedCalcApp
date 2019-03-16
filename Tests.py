@@ -1,5 +1,5 @@
 import unittest
-import TextBasedCalculator #TODO: Rename to TextBasedCalc or something like that
+import TextBasedCalculator
 
 evaluator = TextBasedCalculator.Evaluator()
 
@@ -46,7 +46,7 @@ class TestMethods(unittest.TestCase):
 
     def test_mixed_complex_scenarios(self):
         self.assertEqual(evaluator.evaluate("a=1\n"
-                                            "b=a++ + a++\n"
+                                            "b=a++ + a++\n"  # Ignore spaces
                                             "c=3*+4\n"
                                             "d=-10--9\n"
                                             "e=-4-6*-6*-4-2\n"
