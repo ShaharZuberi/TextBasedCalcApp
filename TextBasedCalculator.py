@@ -203,7 +203,7 @@ class Evaluator:
         res = None
         for op in BinaryOperatorsMap:
             if op in expression:
-                if op in SignMap:  # TODO:Use positive and negative constants
+                if op in SignMap:
                     sub_expressions = re.compile(p.format(op)).split(expression)
                     sub_expressions = list(filter(None, sub_expressions))
                     if len(sub_expressions) == 1:
