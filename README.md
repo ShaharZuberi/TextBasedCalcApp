@@ -25,5 +25,6 @@ $ python Tests.py
 Multiple signs:
 1. a=-3+-+-+-2
 2. b=10----9 
+
 Multipliction of negativs
 3. c=-4-6*-6*-4-2
